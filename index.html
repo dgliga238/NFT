@@ -35,11 +35,31 @@
             margin: 0;
             line-height: 1.3;
         }
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 100;
+            text-align: center;
+        }
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 
 <body>
-<div id="ui-overlay">
+<div id="loading">
+    <h2>🐾 Loading Luna...</h2>
+    <p>Please allow camera access</p>
+</div>
+
+<div id="ui-overlay" class="hidden">
     <h1>🐾 Luna, the Portal Cat</h1>
     <p>
         1️⃣ Point the camera at your NFT marker with the cat image.<br/>
@@ -52,20 +72,21 @@
     embedded
     vr-mode-ui="enabled: false"
     renderer="colorManagement: true; physicallyCorrectLights: true"
-    arjs="sourceType: webcam; trackingMethod: best; debugUIEnabled: false"
+    arjs="sourceType: webcam; trackingMethod: best; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
 >
     <!-- Lights -->
     <a-entity light="type: ambient; intensity: 1"></a-entity>
     <a-entity light="type: directional; intensity: 0.9" position="1 1 1"></a-entity>
 
-    <!-- NFT Marker
-         IMPORTANT:
-
-    -->
+    <!-- NFT Marker - path should NOT include file extension -->
     <a-nft
         id="catMarker"
         type="nft"
         url="./models/eye"
+        smooth="true"
+        smoothCount="10"
+        smoothTolerance="0.01"
+        smoothThreshold="5"
     >
 
         <!-- Main card with the anime cat image -->
@@ -109,8 +130,7 @@
 
         <!-- Story text -->
         <a-text id="storyText"
-                value="📸 Scan the cat marker
-to wake up Luna."
+                value="📸 Tap to wake up Luna."
                 color="#ffd6ff"
                 align="center"
                 position="0 0.8 0.1"
@@ -173,6 +193,9 @@ to wake up Luna."
     // Wait until A-Frame and the scene are ready
     window.addEventListener('load', function () {
         const sceneEl = document.querySelector('a-scene');
+        const loadingEl = document.getElementById('loading');
+        const uiOverlay = document.getElementById('ui-overlay');
+        const marker = document.querySelector('#catMarker');
 
         const catCard   = document.querySelector('#catCard');
         const aura      = document.querySelector('#aura');
@@ -181,13 +204,28 @@ to wake up Luna."
         const portal    = document.querySelector('#portal');
         const heart     = document.querySelector('#heart');
 
-        // Story phases:
-        // 0   – initial card + text
-        // 1   – stars appear
-        // 2   – switch from card to portal
-        // 2.5 – cycle portal messages/colors
-        // 3   – heart appears
-        // 3.5 – ending + replay
+        // Hide loading screen when AR is ready
+        sceneEl.addEventListener('renderstart', function() {
+            loadingEl.classList.add('hidden');
+            uiOverlay.classList.remove('hidden');
+        });
+
+        // Listen for marker found/lost events
+        marker.addEventListener('markerFound', function() {
+            console.log('Marker detected!');
+            uiOverlay.querySelector('p').innerHTML = 
+                '✅ <strong>Marker detected!</strong><br/>' +
+                'Tap on the screen to continue Luna\'s story.';
+        });
+
+        marker.addEventListener('markerLost', function() {
+            console.log('Marker lost');
+            uiOverlay.querySelector('p').innerHTML = 
+                '⚠️ Marker lost - point camera at marker<br/>' +
+                'Keep the marker in view and well-lit.';
+        });
+
+        // Story phases
         let phase = 0;
         let messageIndex = 0;
 
@@ -226,7 +264,6 @@ to wake up Luna."
                 messageIndex = (messageIndex + 1) % phase0Messages.length;
                 storyText.setAttribute('value', phase0Messages[messageIndex]);
 
-                // After we loop through phase 0 messages, go to phase 1
                 if (messageIndex === phase0Messages.length - 1) {
                     phase = 1;
                     messageIndex = 0;
@@ -253,7 +290,6 @@ to wake up Luna."
                 messageIndex = (messageIndex + 1) % phase2Messages.length;
                 storyText.setAttribute('value', phase2Messages[messageIndex]);
 
-                // Slightly change portal color/emissive each tap
                 const colors    = ["#ff8ad9", "#ffb347", "#8ad9ff", "#c38dff"];
                 const emissives = ["#b57dff", "#ff9dbb", "#7dc9ff", "#ff9df2"];
                 const idx = messageIndex % colors.length;
@@ -265,7 +301,6 @@ to wake up Luna."
                     "; opacity: 0.9; transparent: true; metalness: 0.2; roughness: 0.1;"
                 );
 
-                // After full cycle, move to heart phase
                 if (messageIndex === phase2Messages.length - 1) {
                     phase = 3;
                     messageIndex = 0;
@@ -285,7 +320,6 @@ to wake up Luna."
                 if (messageIndex < phase3Messages.length) {
                     storyText.setAttribute('value', phase3Messages[messageIndex]);
                 } else {
-                    // Reset everything to initial state
                     phase = 0;
                     messageIndex = 0;
                     setCardVisible(true);
@@ -294,7 +328,7 @@ to wake up Luna."
                     heart.setAttribute('visible', false);
                     storyText.setAttribute(
                         'value',
-                        "📸 Scan the cat marker\nto wake up Luna again."
+                        "📸 Tap to wake up Luna again."
                     );
                 }
             }

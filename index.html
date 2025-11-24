@@ -1,124 +1,306 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Dali NFT AR — BoxInstanced</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <meta charset="utf-8" />
+    <title>Luna AR NFT Experience</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
 
-  <!-- A-Frame -->
-  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <!-- A-Frame -->
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <!-- AR.js NFT -->
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
 
-  <!-- AR.js NFT build -->
-  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar-nft.js"></script>
-
-  <style>
-    body { margin:0; overflow:hidden; }
-    .hud {
-      position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
-      display: grid; grid-template-columns: repeat(5, auto); gap: 8px;
-      font: 600 14px system-ui;
-      z-index: 10; pointer-events:none;
-    }
-    .hud.hidden { display:none; }
-    .hud button {
-      pointer-events:auto;
-      padding:10px 12px; border:0; border-radius:10px;
-      background: rgba(255,255,255,0.9);
-    }
-  </style>
-
-  <!-- KEEP YOUR GESTURE COMPONENTS HERE (tap, pinch, twist, drag, spin) -->
-  <script>
-    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-    /* … your gesture components here … */
-  </script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        #ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 10px 14px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.75), rgba(0,0,0,0));
+            color: #fff;
+            font-size: 13px;
+            z-index: 10;
+        }
+        #ui-overlay h1 {
+            margin: 0 0 4px 0;
+            font-size: 15px;
+        }
+        #ui-overlay p {
+            margin: 0;
+            line-height: 1.3;
+        }
+    </style>
 </head>
 
 <body>
+<div id="ui-overlay">
+    <h1>🐾 Luna, the Portal Cat</h1>
+    <p>
+        1️⃣ Point the camera at your NFT marker with the cat image.<br/>
+        2️⃣ When Luna appears, tap on the screen to continue the story.<br/>
+        3️⃣ Watch her world transform as you interact.
+    </p>
+</div>
 
-  <!-- HUD -->
-  <div class="hud" id="hud">
-    <button id="btn-rot-l">⟲</button>
-    <button id="btn-rot-r">⟳</button>
-    <button id="btn-scale--">−</button>
-    <button id="btn-scale-+">＋</button>
-    <button id="btn-color">🎨</button>
-  </div>
-
-  <a-scene
-    vr-mode-ui="enabled: false"
-    renderer="colorManagement:true; physicallyCorrectLights:true"
+<a-scene
     embedded
-    arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;">
+    vr-mode-ui="enabled: false"
+    renderer="colorManagement: true; physicallyCorrectLights: true"
+    arjs="sourceType: webcam; trackingMethod: best; debugUIEnabled: false"
+>
+    <!-- Lights -->
+    <a-entity light="type: ambient; intensity: 1"></a-entity>
+    <a-entity light="type: directional; intensity: 0.9" position="1 1 1"></a-entity>
 
-    <!-- NFT Marker -->
+    <!-- NFT Marker
+         IMPORTANT:
+
+    -->
     <a-nft
-      type="nft"
-      url="models/dali"
-      smooth="true"
-      smoothCount="10"
-      smoothTolerance="0.01"
-      smoothThreshold="5">
+        id="catMarker"
+        type="nft"
+        url="./models/dali"
+    >
 
-      <!-- LIGHTS -->
-      <a-entity light="type: ambient; intensity: 0.8"></a-entity>
-      <a-entity light="type: directional; intensity: 0.9" position="1 1 1"></a-entity>
+        <!-- Main card with the anime cat image -->
+        <a-plane
+            id="catCard"
+            position="0 0 0"
+            rotation="-90 0 0"
+            width="1.2"
+            height="1.2"
+            material="
+                src: url(./models/dali.png);
+                opacity: 0.95;
+                transparent: true;
+                shader: standard;
+                emissive: #ff8ad9;
+                emissiveIntensity: 0.6;">
+        </a-plane>
 
-      <!-- DRAG PLANE -->
-      <a-plane id="dragplane" class="raytarget"
-        position="0 0 0" rotation="-90 0 0" width="2" height="2"
-        material="opacity:0; transparent:true"></a-plane>
+        <!-- Soft glowing aura around the card -->
+        <a-ring id="aura"
+                position="0 0 0"
+                rotation="-90 0 0"
+                radius-inner="0.7"
+                radius-outer="0.9"
+                material="color: #ffb3ec; opacity: 0.7; transparent: true"
+                animation__pulse_scale="
+                    property: scale;
+                    from: 1 1 1;
+                    to: 1.15 1.15 1.15;
+                    dir: alternate;
+                    loop: true;
+                    dur: 1400"
+                animation__pulse_opacity="
+                    property: material.opacity;
+                    from: 0.4;
+                    to: 0.9;
+                    dir: alternate;
+                    loop: true;
+                    dur: 1400">
+        </a-ring>
 
-      <!-- YOUR MODEL -->
-      <a-entity id="daliModel" class="raytarget"
-        gltf-model="models/BoxInstanced.gltf"
-        position="0 0 0"
-        scale="0.4 0.4 0.4"
+        <!-- Story text -->
+        <a-text id="storyText"
+                value="📸 Scan the cat marker
+to wake up Luna."
+                color="#ffd6ff"
+                align="center"
+                position="0 0.8 0.1"
+                rotation="-90 0 0"
+                width="2"
+                shader="msdf"
+                negate="false">
+        </a-text>
 
-        tap-gestures
-        spin-toggle
-        pinch-scale
-        twist-rotate
-        drag-on-plane="plane:#dragplane; yOffset:0.25; radius:0.8">
-      </a-entity>
+        <!-- Small stars for Luna's dream world (hidden at first) -->
+        <a-entity id="stars" visible="false">
+            <a-sphere radius="0.05"
+                      position="-0.5 0.2 0.2"
+                      material="color: #fff5ff; emissive: #ffc8ff; emissiveIntensity: 0.8;">
+            </a-sphere>
+            <a-sphere radius="0.04"
+                      position="0.4 0.1 -0.1"
+                      material="color: #e0f0ff; emissive: #9ad8ff; emissiveIntensity: 0.8;">
+            </a-sphere>
+            <a-sphere radius="0.03"
+                      position="0.1 0.3 0.3"
+                      material="color: #fff0f5; emissive: #ffb6e1; emissiveIntensity: 0.9;">
+            </a-sphere>
+        </a-entity>
+
+        <!-- Portal disc (hidden at first) -->
+        <a-ring id="portal"
+                visible="false"
+                position="0 0 0.02"
+                rotation="-90 0 0"
+                radius-inner="0.3"
+                radius-outer="0.7"
+                material="color: #ff8ad9; emissive: #b57dff; opacity: 0.9;
+                          transparent: true; metalness: 0.2; roughness: 0.1;"
+                animation__spin="
+                    property: rotation;
+                    from: -90 0 0;
+                    to: -90 360 0;
+                    loop: true;
+                    dur: 6000;
+                    easing: linear">
+        </a-ring>
+
+        <!-- Glowing heart for the ending (hidden at first) -->
+        <a-sphere id="heart"
+                  visible="false"
+                  position="0 0.3 0.1"
+                  radius="0.15"
+                  material="color: #ff6fae; emissive: #ff9ad4; emissiveIntensity: 1;
+                            opacity: 0.95; transparent: true">
+        </a-sphere>
 
     </a-nft>
 
+    <!-- AR Camera -->
     <a-entity camera></a-entity>
-  </a-scene>
+</a-scene>
 
-  <script>
-    const model = document.getElementById('daliModel');
-    const hud = document.getElementById('hud');
+<script>
+    // Wait until A-Frame and the scene are ready
+    window.addEventListener('load', function () {
+        const sceneEl = document.querySelector('a-scene');
 
-    // HUD controls
-    document.getElementById('btn-rot-l').onclick = () => changeRot(-15);
-    document.getElementById('btn-rot-r').onclick = () => changeRot(15);
+        const catCard   = document.querySelector('#catCard');
+        const aura      = document.querySelector('#aura');
+        const storyText = document.querySelector('#storyText');
+        const stars     = document.querySelector('#stars');
+        const portal    = document.querySelector('#portal');
+        const heart     = document.querySelector('#heart');
 
-    function changeRot(d){
-      const r = model.getAttribute('rotation');
-      model.setAttribute('rotation',{x:r.x, y:r.y+d, z:r.z});
-    }
+        // Story phases:
+        // 0   – initial card + text
+        // 1   – stars appear
+        // 2   – switch from card to portal
+        // 2.5 – cycle portal messages/colors
+        // 3   – heart appears
+        // 3.5 – ending + replay
+        let phase = 0;
+        let messageIndex = 0;
 
-    document.getElementById('btn-scale--').onclick = () => changeScale(0.9);
-    document.getElementById('btn-scale-+').onclick = () => changeScale(1.1);
+        const phase0Messages = [
+            "📸 Tap to wake up Luna.",
+            "👀 She blinks slowly, noticing you."
+        ];
 
-    function changeScale(mult){
-      const s = model.getAttribute('scale');
-      model.setAttribute('scale',{
-        x:clamp(s.x*mult,0.1,3),
-        y:clamp(s.y*mult,0.1,3),
-        z:clamp(s.z*mult,0.1,3)
-      });
-    }
+        const phase1Messages = [
+            "✨ Stars appear around Luna.",
+            "🌙 A portal to her dream world opens..."
+        ];
 
-    document.getElementById('btn-color').onclick = () => model.emit('random-color');
+        const phase2Messages = [
+            "🌌 Luna steps into the portal.",
+            "🌀 Colors swirl as she jumps between worlds.",
+            "🚪 Doors of light open in every direction."
+        ];
 
-    // Touch gestures
-    model.addEventListener('tap', () => model.emit('toggle-spin'));
-    model.addEventListener('doubletap', () => model.emit('random-color'));
-    model.addEventListener('longpress', () => hud.classList.toggle('hidden'));
-  </script>
+        const phase3Messages = [
+            "💖 You send Luna a glowing heart.",
+            "🐾 She purrs and promises to visit again soon.",
+            "🔁 Tap once more to replay her story."
+        ];
+
+        // Helper: show/hide the main card and aura
+        function setCardVisible(visible) {
+            catCard.setAttribute('visible', visible);
+            aura.setAttribute('visible', visible);
+        }
+
+        // Tap anywhere on the scene to progress the story
+        sceneEl.addEventListener('click', function () {
+            // Phase 0: wake up Luna on the card
+            if (phase === 0) {
+                messageIndex = (messageIndex + 1) % phase0Messages.length;
+                storyText.setAttribute('value', phase0Messages[messageIndex]);
+
+                // After we loop through phase 0 messages, go to phase 1
+                if (messageIndex === phase0Messages.length - 1) {
+                    phase = 1;
+                    messageIndex = 0;
+                }
+            }
+            // Phase 1: stars appear around the card
+            else if (phase === 1) {
+                stars.setAttribute('visible', true);
+                storyText.setAttribute('value', phase1Messages[0]);
+                phase = 2;
+                messageIndex = 0;
+            }
+            // Phase 2: switch from card to portal world
+            else if (phase === 2) {
+                setCardVisible(false);
+                stars.setAttribute('visible', true);
+                portal.setAttribute('visible', true);
+                storyText.setAttribute('value', phase2Messages[0]);
+                phase = 2.5;
+                messageIndex = 0;
+            }
+            // Phase 2.5: interact with the portal, cycle messages and colors
+            else if (phase === 2.5) {
+                messageIndex = (messageIndex + 1) % phase2Messages.length;
+                storyText.setAttribute('value', phase2Messages[messageIndex]);
+
+                // Slightly change portal color/emissive each tap
+                const colors    = ["#ff8ad9", "#ffb347", "#8ad9ff", "#c38dff"];
+                const emissives = ["#b57dff", "#ff9dbb", "#7dc9ff", "#ff9df2"];
+                const idx = messageIndex % colors.length;
+
+                portal.setAttribute(
+                    'material',
+                    "color: " + colors[idx] +
+                    "; emissive: " + emissives[idx] +
+                    "; opacity: 0.9; transparent: true; metalness: 0.2; roughness: 0.1;"
+                );
+
+                // After full cycle, move to heart phase
+                if (messageIndex === phase2Messages.length - 1) {
+                    phase = 3;
+                    messageIndex = 0;
+                    storyText.setAttribute('value', "💖 Tap again to send Luna a glowing heart.");
+                }
+            }
+            // Phase 3: heart appears
+            else if (phase === 3) {
+                heart.setAttribute('visible', true);
+                storyText.setAttribute('value', phase3Messages[0]);
+                phase = 3.5;
+                messageIndex = 0;
+            }
+            // Phase 3.5: ending + replay
+            else if (phase === 3.5) {
+                messageIndex = messageIndex + 1;
+                if (messageIndex < phase3Messages.length) {
+                    storyText.setAttribute('value', phase3Messages[messageIndex]);
+                } else {
+                    // Reset everything to initial state
+                    phase = 0;
+                    messageIndex = 0;
+                    setCardVisible(true);
+                    stars.setAttribute('visible', false);
+                    portal.setAttribute('visible', false);
+                    heart.setAttribute('visible', false);
+                    storyText.setAttribute(
+                        'value',
+                        "📸 Scan the cat marker\nto wake up Luna again."
+                    );
+                }
+            }
+        });
+    });
+</script>
 
 </body>
 </html>

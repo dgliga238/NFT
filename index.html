@@ -190,36 +190,41 @@
   <!-- SCENE -->
   <a-scene
     embedded
+    vr-mode-ui="enabled:false"
     renderer="colorManagement:true; physicallyCorrectLights:true"
-    xr-mode-ui="enabled:false"
-    arjs="sourceType:webcam; detectionMode:mono; debugUIEnabled:false">
+    arjs="sourceType: webcam; detectionMode: mono; debugUIEnabled: false"
+  >
 
     <a-entity id="ray" cursor="rayOrigin:mouse" raycaster="objects:.raytarget"></a-entity>
 
     <a-entity light="type:ambient; intensity:0.8"></a-entity>
     <a-entity light="type:directional; intensity:0.6" position="0 1 1"></a-entity>
 
-    <!-- ============= NFT MARKER ============= -->
+    <!-- ❗ FIXED NFT MARKER PATH -->
     <a-nft
       type="nft"
       url="dali"
       smooth="true"
-      id="marker">
+      id="marker"
+      crossorigin="anonymous"
+    >
 
       <!-- drag plane -->
       <a-plane id="dragplane" class="raytarget"
-               position="0 0 0" rotation="-90 0 0"
-               width="2" height="2"
-               material="color:#000; opacity:0; transparent:true"></a-plane>
+        position="0 0 0" rotation="-90 0 0"
+        width="2" height="2"
+        material="color:#000; opacity:0; transparent:true">
+      </a-plane>
 
-      <!-- Model -->
+      <!-- ❗ FIX YOUR MODEL PATH -->
       <a-entity id="myModel" class="raytarget"
-                gltf-model="url(models/piano.glb)"
-                position="0 0.25 0"
-                scale="0.25 0.25 0.25"
-                tap-gestures spin-toggle
-                drag-on-plane="plane:#dragplane; yOffset:0.25; radius:0.6"
-                pinch-scale twist-rotate></a-entity>
+        gltf-model="url(models/BoxInstanced.gltf)"
+        position="0 0.25 0"
+        scale="0.25 0.25 0.25"
+        tap-gestures spin-toggle
+        drag-on-plane="plane:#dragplane; yOffset:0.25; radius:0.6"
+        pinch-scale twist-rotate>
+      </a-entity>
 
     </a-nft>
 

@@ -248,8 +248,7 @@
     cube.addEventListener('tap',()=>cube.emit('toggle-spin'));
     cube.addEventListener('doubletap',()=>cube.emit('random-color'));
     cube.addEventListener('longpress',()=>hud.classList.toggle('hidden'));
-  </script>
-
+    
 // Debug: Check if marker is found
 const marker = document.querySelector('a-nft');
 
@@ -270,5 +269,6 @@ document.querySelector('a-scene').addEventListener('loaded', () => {
 marker.addEventListener('arjs-nft-loaded', () => {
   console.log('✅ NFT marker loaded');
 });
+  </script>
 </body>
 </html>

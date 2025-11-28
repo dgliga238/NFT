@@ -1,340 +1,254 @@
 <!doctype html>
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <title>Luna AR NFT Experience</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <meta charset="utf-8" />
+  <title>NFT AR Interaction Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
 
-    <!-- A-Frame -->
-    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-    <!-- AR.js NFT -->
-    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
 
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  <!-- AR.js NFT version -->
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar-nft.js"></script>
+
+  <style>
+    body { margin:0; overflow:hidden; }
+    .hud {
+      position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+      display: grid; grid-template-columns: repeat(5, auto); gap: 8px;
+      font: 600 14px system-ui;
+      z-index: 10; pointer-events: none;
+    }
+    .hud.hidden { display:none; }
+    .hud button {
+      pointer-events:auto;
+      padding:10px 12px; border:0; border-radius:10px;
+      background:rgba(255,255,255,.9);
+    }
+  </style>
+
+  <script>
+    /* --- SAME GESTURE + DRAG CODE YOU ALREADY HAVE --- */
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+    AFRAME.registerComponent('tap-gestures', {
+      schema: {longMs:{default:500}},
+      init () {
+        let lastTap = 0, pressTimer = null, down = false;
+        this.el.addEventListener('mousedown', () => {
+          down = true;
+          const now = performance.now();
+          if (now - lastTap < 300) this.el.emit('doubletap');
+          lastTap = now;
+          pressTimer = setTimeout(() => { if (down) this.el.emit('longpress'); }, this.data.longMs);
+        });
+        this.el.addEventListener('mouseup', () => {
+          down = false;
+          clearTimeout(pressTimer);
+          this.el.emit('tap');
+        });
+      }
+    });
+
+    AFRAME.registerComponent('drag-on-plane', {
+      schema: { plane:{type:'selector'}, yOffset:{default:0.25}, radius:{default:0.6} },
+      init(){
+        this.dragging=false;
+        this.scene=this.el.sceneEl;
+        this.rayEl=document.querySelector('#ray');
+
+        this.el.addEventListener('mousedown',()=>this.dragging=true);
+        window.addEventListener('mouseup',()=>this.dragging=false);
+
+        this.scene.addEventListener('mousemove',()=>this.updateDrag());
+      },
+      updateDrag(){
+        if(!this.dragging) return;
+        const raycaster = this.rayEl.getObject3D('raycaster');
+        if(!raycaster) return;
+        const planeMesh = this.data.plane.getObject3D('mesh');
+        if(!planeMesh) return;
+
+        planeMesh.updateMatrixWorld();
+        const normal = new THREE.Vector3(0,1,0)
+          .applyQuaternion(planeMesh.getWorldQuaternion(new THREE.Quaternion()));
+        const point = planeMesh.getWorldPosition(new THREE.Vector3());
+        const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(normal, point);
+
+        const hit = new THREE.Vector3();
+        const ray = raycaster.ray;
+
+        if(ray.intersectPlane(plane, hit)){
+          const local = this.el.parentEl.object3D.worldToLocal(hit.clone());
+          const r = Math.hypot(local.x, local.z);
+          if(r>this.data.radius){
+            const k = this.data.radius / r;
+            local.x *= k; local.z *= k;
+          }
+          this.el.setAttribute('position', `${local.x} ${this.data.yOffset} ${local.z}`);
         }
-        #ui-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            padding: 10px 14px;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.75), rgba(0,0,0,0));
-            color: #fff;
-            font-size: 13px;
-            z-index: 10;
-        }
-        #ui-overlay h1 {
-            margin: 0 0 4px 0;
-            font-size: 15px;
-        }
-        #ui-overlay p {
-            margin: 0;
-            line-height: 1.3;
-        }
-        #loading {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            z-index: 100;
-            text-align: center;
-        }
-        .hidden {
-            display: none;
-        }
-    </style>
+      }
+    });
+
+    AFRAME.registerComponent('pinch-scale', {
+      schema:{min:{default:0.2}, max:{default:3}},
+      init(){
+        this.active=false; this.startD=0; this.startScale=null;
+        const dist=(a,b)=>Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
+
+        window.addEventListener('touchstart',(e)=>{
+          if(e.touches.length===2){
+            this.active=true;
+            this.startD=dist(e.touches[0],e.touches[1]);
+            this.startScale={...this.el.getAttribute('scale')};
+          }
+        },{passive:false});
+
+        window.addEventListener('touchmove',(e)=>{
+          if(!this.active||e.touches.length<2) return;
+          const d=dist(e.touches[0],e.touches[1]);
+          const mult=d/this.startD;
+          const s=this.startScale;
+          this.el.setAttribute('scale',{
+            x: clamp(s.x*mult,this.data.min,this.data.max),
+            y: clamp(s.y*mult,this.data.min,this.data.max),
+            z: clamp(s.z*mult,this.data.min,this.data.max)
+          });
+        },{passive:false});
+
+        window.addEventListener('touchend',()=>this.active=false);
+      }
+    });
+
+    AFRAME.registerComponent('twist-rotate', {
+      schema:{degPerRad:{default:57.2958}},
+      init(){
+        this.active=false; this.startA=0; this.startRotY=0;
+        const angle=(a,b)=>Math.atan2(b.clientY-a.clientY,b.clientX-a.clientX);
+
+        window.addEventListener('touchstart',(e)=>{
+          if(e.touches.length===2){
+            this.active=true;
+            this.startA=angle(e.touches[0],e.touches[1]);
+            this.startRotY=this.el.getAttribute('rotation').y;
+          }
+        });
+
+        window.addEventListener('touchmove',(e)=>{
+          if(!this.active||e.touches.length<2) return;
+          const a=angle(e.touches[0],e.touches[1]);
+          const delta = (a - this.startA)*this.data.degPerRad;
+          const r=this.el.getAttribute('rotation');
+          this.el.setAttribute('rotation',{x:r.x,y:this.startRotY+delta,z:r.z});
+        });
+
+        window.addEventListener('touchend',()=>this.active=false);
+      }
+    });
+
+    AFRAME.registerComponent('spin-toggle',{
+      schema:{speed:{default:4000}},
+      init(){
+        this.spinning=false;
+        this.el.addEventListener('toggle-spin',()=>{
+          this.spinning=!this.spinning;
+          if(this.spinning){
+            this.el.setAttribute('animation__spin',
+              `property: rotation; to: 0 360 0; loop: true; dur: ${this.data.speed}`);
+          }else{
+            this.el.removeAttribute('animation__spin');
+          }
+        });
+        this.el.addEventListener('random-color',()=>{
+          const colors=['#4CC3D9','#FFC65D','#7BC8A4','#EF2D5E','#FFF'];
+          this.el.setAttribute('material','color',
+            colors[Math.floor(Math.random()*colors.length)]);
+        });
+      }
+    });
+  </script>
 </head>
 
 <body>
-<div id="loading">
-    <h2>🐾 Loading Luna...</h2>
-    <p>Please allow camera access</p>
-</div>
 
-<div id="ui-overlay" class="hidden">
-    <h1>🐾 Luna, the Portal Cat</h1>
-    <p>
-        1️⃣ Point the camera at your NFT marker with the cat image.<br/>
-        2️⃣ When Luna appears, tap on the screen to continue the story.<br/>
-        3️⃣ Watch her world transform as you interact.
-    </p>
-</div>
+  <!-- HUD -->
+  <div class="hud" id="hud">
+    <button id="btn-rot-l">⟲</button>
+    <button id="btn-rot-r">⟳</button>
+    <button id="btn-scale--">−</button>
+    <button id="btn-scale-+">＋</button>
+    <button id="btn-color">🎨</button>
+  </div>
 
-<a-scene
+  <a-scene
     embedded
-    vr-mode-ui="enabled: false"
     renderer="colorManagement: true; physicallyCorrectLights: true"
-    arjs="sourceType: webcam; trackingMethod: best; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
->
-    <!-- Lights -->
-    <a-entity light="type: ambient; intensity: 1"></a-entity>
-    <a-entity light="type: directional; intensity: 0.9" position="1 1 1"></a-entity>
+    vr-mode-ui="enabled: false"
+    arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;">
 
-    <!-- NFT Marker - path should NOT include file extension -->
+    <!-- Cursor -->
+    <a-entity id="ray" cursor="rayOrigin: mouse" raycaster="objects: .raytarget"></a-entity>
+
+    <a-entity light="type: ambient; intensity: 0.8"></a-entity>
+    <a-entity light="type: directional; intensity: 0.6" position="0 1 1"></a-entity>
+
+    <!-- NFT Marker -->
     <a-nft
-        id="catMarker"
-        type="nft"
-        url="./nft/eye"
-        smooth="true"
-        smoothCount="10"
-        smoothTolerance="0.01"
-        smoothThreshold="5"
-    >
+      type="nft"
+      url="./nft/eye"
+      smooth="true"
+      smoothCount="10"
+      smoothTolerance="0.01">
 
-        <!-- Main card with the anime cat image -->
-        <a-plane
-            id="catCard"
-            position="0 0 0"
-            rotation="-90 0 0"
-            width="1.2"
-            height="1.2"
-            material="
-                src: url(./models/eye.png);
-                opacity: 0.95;
-                transparent: true;
-                shader: standard;
-                emissive: #ff8ad9;
-                emissiveIntensity: 0.6;">
-        </a-plane>
+      <!-- Drag plane -->
+      <a-plane id="dragplane" class="raytarget"
+        position="0 0 0" rotation="-90 0 0"
+        width="2" height="2"
+        material="opacity:0; transparent:true"></a-plane>
 
-        <!-- Soft glowing aura around the card -->
-        <a-ring id="aura"
-                position="0 0 0"
-                rotation="-90 0 0"
-                radius-inner="0.7"
-                radius-outer="0.9"
-                material="color: #ffb3ec; opacity: 0.7; transparent: true"
-                animation__pulse_scale="
-                    property: scale;
-                    from: 1 1 1;
-                    to: 1.15 1.15 1.15;
-                    dir: alternate;
-                    loop: true;
-                    dur: 1400"
-                animation__pulse_opacity="
-                    property: material.opacity;
-                    from: 0.4;
-                    to: 0.9;
-                    dir: alternate;
-                    loop: true;
-                    dur: 1400">
-        </a-ring>
-
-        <!-- Story text -->
-        <a-text id="storyText"
-                value="📸 Tap to wake up Luna."
-                color="#ffd6ff"
-                align="center"
-                position="0 0.8 0.1"
-                rotation="-90 0 0"
-                width="2"
-                shader="msdf"
-                negate="false">
-        </a-text>
-
-        <!-- Small stars for Luna's dream world (hidden at first) -->
-        <a-entity id="stars" visible="false">
-            <a-sphere radius="0.05"
-                      position="-0.5 0.2 0.2"
-                      material="color: #fff5ff; emissive: #ffc8ff; emissiveIntensity: 0.8;">
-            </a-sphere>
-            <a-sphere radius="0.04"
-                      position="0.4 0.1 -0.1"
-                      material="color: #e0f0ff; emissive: #9ad8ff; emissiveIntensity: 0.8;">
-            </a-sphere>
-            <a-sphere radius="0.03"
-                      position="0.1 0.3 0.3"
-                      material="color: #fff0f5; emissive: #ffb6e1; emissiveIntensity: 0.9;">
-            </a-sphere>
-        </a-entity>
-
-        <!-- Portal disc (hidden at first) -->
-        <a-ring id="portal"
-                visible="false"
-                position="0 0 0.02"
-                rotation="-90 0 0"
-                radius-inner="0.3"
-                radius-outer="0.7"
-                material="color: #ff8ad9; emissive: #b57dff; opacity: 0.9;
-                          transparent: true; metalness: 0.2; roughness: 0.1;"
-                animation__spin="
-                    property: rotation;
-                    from: -90 0 0;
-                    to: -90 360 0;
-                    loop: true;
-                    dur: 6000;
-                    easing: linear">
-        </a-ring>
-
-        <!-- Glowing heart for the ending (hidden at first) -->
-        <a-sphere id="heart"
-                  visible="false"
-                  position="0 0.3 0.1"
-                  radius="0.15"
-                  material="color: #ff6fae; emissive: #ff9ad4; emissiveIntensity: 1;
-                            opacity: 0.95; transparent: true">
-        </a-sphere>
+      <!-- Interactive object -->
+      <a-box id="cube" class="raytarget"
+             position="0 0.25 0"
+             depth="0.5" height="0.5" width="0.5"
+             material="color:#4CC3D9"
+             tap-gestures spin-toggle
+             drag-on-plane="plane:#dragplane; yOffset:0.25; radius:0.6"
+             pinch-scale twist-rotate>
+      </a-box>
 
     </a-nft>
 
-    <!-- AR Camera -->
     <a-entity camera></a-entity>
-</a-scene>
+  </a-scene>
 
-<script>
-    // Wait until A-Frame and the scene are ready
-    window.addEventListener('load', function () {
-        const sceneEl = document.querySelector('a-scene');
-        const loadingEl = document.getElementById('loading');
-        const uiOverlay = document.getElementById('ui-overlay');
-        const marker = document.querySelector('#catMarker');
+  <script>
+    const hud=document.getElementById('hud');
+    const cube=document.getElementById('cube');
 
-        const catCard   = document.querySelector('#catCard');
-        const aura      = document.querySelector('#aura');
-        const storyText = document.querySelector('#storyText');
-        const stars     = document.querySelector('#stars');
-        const portal    = document.querySelector('#portal');
-        const heart     = document.querySelector('#heart');
+    document.getElementById('btn-rot-l').onclick=()=>nudgeRot(-15);
+    document.getElementById('btn-rot-r').onclick=()=>nudgeRot(15);
+    function nudgeRot(d){
+      const r=cube.getAttribute('rotation');
+      cube.setAttribute('rotation',{x:r.x,y:r.y+d,z:r.z});
+    }
 
-        // Hide loading screen when AR is ready
-        sceneEl.addEventListener('renderstart', function() {
-            loadingEl.classList.add('hidden');
-            uiOverlay.classList.remove('hidden');
-        });
+    document.getElementById('btn-scale--').onclick=()=>nudgeScale(0.9);
+    document.getElementById('btn-scale-+').onclick=()=>nudgeScale(1.1);
+    function nudgeScale(m){
+      const s=cube.getAttribute('scale');
+      cube.setAttribute('scale',{
+        x:clamp(s.x*m,0.2,3),
+        y:clamp(s.y*m,0.2,3),
+        z:clamp(s.z*m,0.2,3)
+      });
+    }
 
-        // Listen for marker found/lost events
-        marker.addEventListener('markerFound', function() {
-            console.log('Marker detected!');
-            uiOverlay.querySelector('p').innerHTML = 
-                '✅ <strong>Marker detected!</strong><br/>' +
-                'Tap on the screen to continue Luna\'s story.';
-        });
+    document.getElementById('btn-color').onclick=()=>cube.emit('random-color');
 
-        marker.addEventListener('markerLost', function() {
-            console.log('Marker lost');
-            uiOverlay.querySelector('p').innerHTML = 
-                '⚠️ Marker lost - point camera at marker<br/>' +
-                'Keep the marker in view and well-lit.';
-        });
-
-        // Story phases
-        let phase = 0;
-        let messageIndex = 0;
-
-        const phase0Messages = [
-            "📸 Tap to wake up Luna.",
-            "👀 She blinks slowly, noticing you."
-        ];
-
-        const phase1Messages = [
-            "✨ Stars appear around Luna.",
-            "🌙 A portal to her dream world opens..."
-        ];
-
-        const phase2Messages = [
-            "🌌 Luna steps into the portal.",
-            "🌀 Colors swirl as she jumps between worlds.",
-            "🚪 Doors of light open in every direction."
-        ];
-
-        const phase3Messages = [
-            "💖 You send Luna a glowing heart.",
-            "🐾 She purrs and promises to visit again soon.",
-            "🔁 Tap once more to replay her story."
-        ];
-
-        // Helper: show/hide the main card and aura
-        function setCardVisible(visible) {
-            catCard.setAttribute('visible', visible);
-            aura.setAttribute('visible', visible);
-        }
-
-        // Tap anywhere on the scene to progress the story
-        sceneEl.addEventListener('click', function () {
-            // Phase 0: wake up Luna on the card
-            if (phase === 0) {
-                messageIndex = (messageIndex + 1) % phase0Messages.length;
-                storyText.setAttribute('value', phase0Messages[messageIndex]);
-
-                if (messageIndex === phase0Messages.length - 1) {
-                    phase = 1;
-                    messageIndex = 0;
-                }
-            }
-            // Phase 1: stars appear around the card
-            else if (phase === 1) {
-                stars.setAttribute('visible', true);
-                storyText.setAttribute('value', phase1Messages[0]);
-                phase = 2;
-                messageIndex = 0;
-            }
-            // Phase 2: switch from card to portal world
-            else if (phase === 2) {
-                setCardVisible(false);
-                stars.setAttribute('visible', true);
-                portal.setAttribute('visible', true);
-                storyText.setAttribute('value', phase2Messages[0]);
-                phase = 2.5;
-                messageIndex = 0;
-            }
-            // Phase 2.5: interact with the portal, cycle messages and colors
-            else if (phase === 2.5) {
-                messageIndex = (messageIndex + 1) % phase2Messages.length;
-                storyText.setAttribute('value', phase2Messages[messageIndex]);
-
-                const colors    = ["#ff8ad9", "#ffb347", "#8ad9ff", "#c38dff"];
-                const emissives = ["#b57dff", "#ff9dbb", "#7dc9ff", "#ff9df2"];
-                const idx = messageIndex % colors.length;
-
-                portal.setAttribute(
-                    'material',
-                    "color: " + colors[idx] +
-                    "; emissive: " + emissives[idx] +
-                    "; opacity: 0.9; transparent: true; metalness: 0.2; roughness: 0.1;"
-                );
-
-                if (messageIndex === phase2Messages.length - 1) {
-                    phase = 3;
-                    messageIndex = 0;
-                    storyText.setAttribute('value', "💖 Tap again to send Luna a glowing heart.");
-                }
-            }
-            // Phase 3: heart appears
-            else if (phase === 3) {
-                heart.setAttribute('visible', true);
-                storyText.setAttribute('value', phase3Messages[0]);
-                phase = 3.5;
-                messageIndex = 0;
-            }
-            // Phase 3.5: ending + replay
-            else if (phase === 3.5) {
-                messageIndex = messageIndex + 1;
-                if (messageIndex < phase3Messages.length) {
-                    storyText.setAttribute('value', phase3Messages[messageIndex]);
-                } else {
-                    phase = 0;
-                    messageIndex = 0;
-                    setCardVisible(true);
-                    stars.setAttribute('visible', false);
-                    portal.setAttribute('visible', false);
-                    heart.setAttribute('visible', false);
-                    storyText.setAttribute(
-                        'value',
-                        "📸 Tap to wake up Luna again."
-                    );
-                }
-            }
-        });
-    });
-</script>
+    cube.addEventListener('tap',()=>cube.emit('toggle-spin'));
+    cube.addEventListener('doubletap',()=>cube.emit('random-color'));
+    cube.addEventListener('longpress',()=>hud.classList.toggle('hidden'));
+  </script>
 
 </body>
 </html>

@@ -250,5 +250,25 @@
     cube.addEventListener('longpress',()=>hud.classList.toggle('hidden'));
   </script>
 
+// Debug: Check if marker is found
+const marker = document.querySelector('a-nft');
+
+marker.addEventListener('markerFound', () => {
+  console.log('✅ MARKER FOUND!');
+});
+
+marker.addEventListener('markerLost', () => {
+  console.log('❌ MARKER LOST');
+});
+
+// Check scene loaded
+document.querySelector('a-scene').addEventListener('loaded', () => {
+  console.log('✅ Scene loaded');
+});
+
+// Check NFT loaded
+marker.addEventListener('arjs-nft-loaded', () => {
+  console.log('✅ NFT marker loaded');
+});
 </body>
 </html>

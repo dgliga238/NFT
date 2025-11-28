@@ -25,10 +25,22 @@
       padding:10px 12px; border:0; border-radius:10px;
       background:rgba(255,255,255,.9);
     }
+    #debug-info {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.7);
+      color: #0f0;
+      padding: 10px;
+      font: 12px monospace;
+      z-index: 100;
+      max-width: 300px;
+    }
   </style>
 
   <script>
-    /* --- SAME GESTURE + DRAG CODE YOU ALREADY HAVE --- */
+    console.log('🔵 Script loading...');
+    
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
     AFRAME.registerComponent('tap-gestures', {
@@ -171,6 +183,12 @@
 
 <body>
 
+  <!-- Debug Info Display -->
+  <div id="debug-info">
+    <div>Status: <span id="status">Initializing...</span></div>
+    <div>Marker: <span id="marker-status">Not found</span></div>
+  </div>
+
   <!-- HUD -->
   <div class="hud" id="hud">
     <button id="btn-rot-l">⟲</button>
@@ -222,53 +240,111 @@
   </a-scene>
 
   <script>
-    const hud=document.getElementById('hud');
-    const cube=document.getElementById('cube');
+    console.log('🔵 Main script starting...');
+    
+    const hud = document.getElementById('hud');
+    const cube = document.getElementById('cube');
+    const statusEl = document.getElementById('status');
+    const markerStatusEl = document.getElementById('marker-status');
 
-    document.getElementById('btn-rot-l').onclick=()=>nudgeRot(-15);
-    document.getElementById('btn-rot-r').onclick=()=>nudgeRot(15);
-    function nudgeRot(d){
-      const r=cube.getAttribute('rotation');
-      cube.setAttribute('rotation',{x:r.x,y:r.y+d,z:r.z});
+    // Update status display
+    function updateStatus(msg) {
+      console.log('📊 ' + msg);
+      statusEl.textContent = msg;
     }
 
-    document.getElementById('btn-scale--').onclick=()=>nudgeScale(0.9);
-    document.getElementById('btn-scale-+').onclick=()=>nudgeScale(1.1);
-    function nudgeScale(m){
-      const s=cube.getAttribute('scale');
-      cube.setAttribute('scale',{
-        x:clamp(s.x*m,0.2,3),
-        y:clamp(s.y*m,0.2,3),
-        z:clamp(s.z*m,0.2,3)
+    function updateMarkerStatus(msg) {
+      console.log('🎯 ' + msg);
+      markerStatusEl.textContent = msg;
+    }
+
+    // HUD controls
+    document.getElementById('btn-rot-l').onclick = () => nudgeRot(-15);
+    document.getElementById('btn-rot-r').onclick = () => nudgeRot(15);
+    
+    function nudgeRot(d) {
+      const r = cube.getAttribute('rotation');
+      cube.setAttribute('rotation', {x:r.x, y:r.y+d, z:r.z});
+    }
+
+    document.getElementById('btn-scale--').onclick = () => nudgeScale(0.9);
+    document.getElementById('btn-scale-+').onclick = () => nudgeScale(1.1);
+    
+    function nudgeScale(m) {
+      const s = cube.getAttribute('scale');
+      cube.setAttribute('scale', {
+        x: clamp(s.x*m, 0.2, 3),
+        y: clamp(s.y*m, 0.2, 3),
+        z: clamp(s.z*m, 0.2, 3)
       });
     }
 
-    document.getElementById('btn-color').onclick=()=>cube.emit('random-color');
+    document.getElementById('btn-color').onclick = () => cube.emit('random-color');
 
-    cube.addEventListener('tap',()=>cube.emit('toggle-spin'));
-    cube.addEventListener('doubletap',()=>cube.emit('random-color'));
-    cube.addEventListener('longpress',()=>hud.classList.toggle('hidden'));
+    cube.addEventListener('tap', () => cube.emit('toggle-spin'));
+    cube.addEventListener('doubletap', () => cube.emit('random-color'));
+    cube.addEventListener('longpress', () => hud.classList.toggle('hidden'));
+
+    // === DEBUG EVENT LISTENERS ===
     
-// Debug: Check if marker is found
-const marker = document.querySelector('a-nft');
+    // Wait for DOM to be ready
+    window.addEventListener('load', () => {
+      console.log('✅ Window loaded');
+      updateStatus('Window loaded');
 
-marker.addEventListener('markerFound', () => {
-  console.log('✅ MARKER FOUND!');
-});
+      const scene = document.querySelector('a-scene');
+      const marker = document.querySelector('a-nft');
 
-marker.addEventListener('markerLost', () => {
-  console.log('❌ MARKER LOST');
-});
+      if (!scene) {
+        console.error('❌ Scene not found!');
+        updateStatus('ERROR: Scene not found');
+        return;
+      }
 
-// Check scene loaded
-document.querySelector('a-scene').addEventListener('loaded', () => {
-  console.log('✅ Scene loaded');
-});
+      if (!marker) {
+        console.error('❌ Marker not found!');
+        updateStatus('ERROR: Marker not found');
+        return;
+      }
 
-// Check NFT loaded
-marker.addEventListener('arjs-nft-loaded', () => {
-  console.log('✅ NFT marker loaded');
-});
+      console.log('✅ Scene and marker elements found');
+
+      // Scene loaded
+      scene.addEventListener('loaded', () => {
+        console.log('✅ A-Frame scene loaded');
+        updateStatus('Scene loaded');
+      });
+
+      // AR.js ready
+      scene.addEventListener('arjs-video-loaded', () => {
+        console.log('✅ Camera video loaded');
+        updateStatus('Camera ready');
+      });
+
+      // NFT marker loaded
+      marker.addEventListener('arjs-nft-loaded', (e) => {
+        console.log('✅ NFT marker data loaded:', e.detail);
+        updateStatus('NFT loaded');
+        updateMarkerStatus('Searching...');
+      });
+
+      // Marker found
+      marker.addEventListener('markerFound', () => {
+        console.log('🎯 ✅ MARKER FOUND!');
+        updateMarkerStatus('FOUND! ✅');
+      });
+
+      // Marker lost
+      marker.addEventListener('markerLost', () => {
+        console.log('🎯 ❌ MARKER LOST');
+        updateMarkerStatus('Lost - searching...');
+      });
+
+      console.log('✅ All event listeners attached');
+    });
+
+    console.log('🔵 Script setup complete');
   </script>
+
 </body>
 </html>

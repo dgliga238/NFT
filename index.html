@@ -199,49 +199,31 @@
   </div>
 
   <a-scene
-    embedded
-    renderer="colorManagement: true; physicallyCorrectLights: true"
-    vr-mode-ui="enabled: false"
-    arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;">
+  embedded
+  vr-mode-ui="enabled: false"
+  renderer="colorManagement: true"
+  arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: true">
 
-    <!-- Cursor -->
-    <a-entity id="ray" cursor="rayOrigin: mouse" raycaster="objects: .raytarget"></a-entity>
+  <a-nft
+    type="nft"
+    url="./nft/pinball2"
+    smooth="true"
+    smoothCount="10"
+    smoothTolerance="0.01"
+    emitevents="true">
 
-    <a-entity light="type: ambient; intensity: 0.8"></a-entity>
-    <a-entity light="type: directional; intensity: 0.6" position="0 1 1"></a-entity>
-
-    <!-- NFT Marker -->
-    <a-nft
-      type="nft"
-      url="./nft/pinball2"
-      smooth="true"
-      smoothCount="10"
-      smoothTolerance="0.01">
-
-      <!-- Drag plane -->
-      <a-plane id="dragplane" class="raytarget"
-        position="0 0 0" rotation="-90 0 0"
-        width="2" height="2"
-        material="opacity:0; transparent:true"></a-plane>
-
-      <!-- Interactive object - BIGGER and more visible -->
-      <a-box id="cube" class="raytarget"
-             position="0 0.5 0"
-             depth="1" height="1" width="1"
-             material="color:#FF0000; metalness:0.3"
-             tap-gestures spin-toggle
-             drag-on-plane="plane:#dragplane; yOffset:0.5; radius:0.6"
-             pinch-scale twist-rotate
-             animation="property: position; to: 0 0.7 0; dir: alternate; loop: true; dur: 1000">
+      <!-- ULTRA VISIBLE RED CUBE -->
+      <a-box id="cube"
+        position="0 0.5 0"
+        depth="1" height="1" width="1"
+        color="#FF0000">
       </a-box>
-      
-      <!-- Add a sphere for reference -->
-      <a-sphere position="0.5 0.3 0" radius="0.2" color="#00FF00"></a-sphere>
 
-    </a-nft>
+  </a-nft>
 
-    <a-entity camera></a-entity>
-  </a-scene>
+  <a-entity camera></a-entity>
+</a-scene>
+
 
   <script>
     console.log('🔵 Main script starting...');

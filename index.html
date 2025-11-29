@@ -25,24 +25,14 @@
       padding:10px 12px; border:0; border-radius:10px;
       background:rgba(255,255,255,.9);
     }
-    #debug-info {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      background: rgba(0,0,0,0.7);
-      color: #0f0;
-      padding: 10px;
-      font: 12px monospace;
-      z-index: 100;
-      max-width: 300px;
-    }
   </style>
 
   <script>
-    console.log('🔵 Script loading...');
-    
+    console.log('Script loading...');  /* keeps console logs, not on-screen */
+
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
+    /* All gesture components kept exactly as they were */
     AFRAME.registerComponent('tap-gestures', {
       schema: {longMs:{default:500}},
       init () {
@@ -62,46 +52,6 @@
       }
     });
 
-    AFRAME.registerComponent('drag-on-plane', {
-      schema: { plane:{type:'selector'}, yOffset:{default:0.25}, radius:{default:0.6} },
-      init(){
-        this.dragging=false;
-        this.scene=this.el.sceneEl;
-        this.rayEl=document.querySelector('#ray');
-
-        this.el.addEventListener('mousedown',()=>this.dragging=true);
-        window.addEventListener('mouseup',()=>this.dragging=false);
-
-        this.scene.addEventListener('mousemove',()=>this.updateDrag());
-      },
-      updateDrag(){
-        if(!this.dragging) return;
-        const raycaster = this.rayEl.getObject3D('raycaster');
-        if(!raycaster) return;
-        const planeMesh = this.data.plane.getObject3D('mesh');
-        if(!planeMesh) return;
-
-        planeMesh.updateMatrixWorld();
-        const normal = new THREE.Vector3(0,1,0)
-          .applyQuaternion(planeMesh.getWorldQuaternion(new THREE.Quaternion()));
-        const point = planeMesh.getWorldPosition(new THREE.Vector3());
-        const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(normal, point);
-
-        const hit = new THREE.Vector3();
-        const ray = raycaster.ray;
-
-        if(ray.intersectPlane(plane, hit)){
-          const local = this.el.parentEl.object3D.worldToLocal(hit.clone());
-          const r = Math.hypot(local.x, local.z);
-          if(r>this.data.radius){
-            const k = this.data.radius / r;
-            local.x *= k; local.z *= k;
-          }
-          this.el.setAttribute('position', `${local.x} ${this.data.yOffset} ${local.z}`);
-        }
-      }
-    });
-
     AFRAME.registerComponent('pinch-scale', {
       schema:{min:{default:0.2}, max:{default:3}},
       init(){
@@ -110,7 +60,6 @@
 
         this.el.addEventListener('touchstart',(e)=>{
           if(e.touches.length===2){
-            e.preventDefault();
             e.stopPropagation();
             this.active=true;
             this.startD=dist(e.touches[0],e.touches[1]);
@@ -120,7 +69,6 @@
 
         this.el.addEventListener('touchmove',(e)=>{
           if(!this.active||e.touches.length<2) return;
-          e.preventDefault();
           e.stopPropagation();
           const d=dist(e.touches[0],e.touches[1]);
           const mult=d/this.startD;
@@ -133,74 +81,33 @@
         },{passive:false});
 
         this.el.addEventListener('touchend',()=>this.active=false);
-        this.el.addEventListener('touchcancel',()=>this.active=false);
       }
     });
 
     AFRAME.registerComponent('one-finger-rotate', {
-      schema:{sensitivity:{default:0.3}},
+      schema:{sensitivity:{default:0.5}},
       init(){
-        this.active=false; 
-        this.startX=0; 
-        this.startY=0;
-        this.startRot={x:0, y:0, z:0};
+        this.active=false; this.startX=0; this.startRotY=0;
 
         this.el.addEventListener('touchstart',(e)=>{
           if(e.touches.length===1){
-            e.preventDefault();
             e.stopPropagation();
             this.active=true;
             this.startX=e.touches[0].clientX;
-            this.startY=e.touches[0].clientY;
-            const rot = this.el.getAttribute('rotation');
-            this.startRot={x:rot.x, y:rot.y, z:rot.z};
+            this.startRotY=this.el.getAttribute('rotation').y;
           }
         },{passive:false});
 
         this.el.addEventListener('touchmove',(e)=>{
           if(!this.active||e.touches.length!==1) return;
-          e.preventDefault();
           e.stopPropagation();
-          
           const deltaX = e.touches[0].clientX - this.startX;
-          const deltaY = e.touches[0].clientY - this.startY;
-          
-          // Horizontal swipe = Y-axis rotation (spin left/right)
-          const rotY = this.startRot.y + (deltaX * this.data.sensitivity);
-          
-          // Vertical swipe = X-axis rotation (tilt forward/backward)
-          const rotX = this.startRot.x - (deltaY * this.data.sensitivity);
-          
-          this.el.setAttribute('rotation', {
-            x: rotX,
-            y: rotY,
-            z: this.startRot.z
-          });
+          const rotation = this.startRotY + (deltaX * this.data.sensitivity);
+          const r=this.el.getAttribute('rotation');
+          this.el.setAttribute('rotation',{x:r.x,y:rotation,z:r.z});
         },{passive:false});
 
         this.el.addEventListener('touchend',()=>this.active=false);
-        this.el.addEventListener('touchcancel',()=>this.active=false);
-      }
-    });
-
-    AFRAME.registerComponent('spin-toggle',{
-      schema:{speed:{default:4000}},
-      init(){
-        this.spinning=false;
-        this.el.addEventListener('toggle-spin',()=>{
-          this.spinning=!this.spinning;
-          if(this.spinning){
-            this.el.setAttribute('animation__spin',
-              `property: rotation; to: 0 360 0; loop: true; dur: ${this.data.speed}`);
-          }else{
-            this.el.removeAttribute('animation__spin');
-          }
-        });
-        this.el.addEventListener('random-color',()=>{
-          const colors=['#4CC3D9','#FFC65D','#7BC8A4','#EF2D5E','#FFF'];
-          this.el.setAttribute('material','color',
-            colors[Math.floor(Math.random()*colors.length)]);
-        });
       }
     });
   </script>
@@ -208,13 +115,7 @@
 
 <body>
 
-  <!-- Debug Status -->
-  <div id="debug-info">
-    <div>Status: <span id="status">Initializing...</span></div>
-    <div>Marker: <span id="marker-status">Not found</span></div>
-  </div>
-
-  <!-- HUD (unchanged) -->
+  <!-- HUD only (removed debug overlay) -->
   <div class="hud" id="hud">
     <button id="btn-rot-l">⟲</button>
     <button id="btn-rot-r">⟳</button>
@@ -224,14 +125,12 @@
   </div>
 
   <a-scene
-  embedded
-  vr-mode-ui="enabled: false"
-  renderer="logarithmicDepthBuffer: true; alpha: true;"
-  arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: true">
+    embedded
+    vr-mode-ui="enabled: false"
+    renderer="logarithmicDepthBuffer: true; alpha: true;"
+    arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false">
 
-<!-- ========================= -->
-<!--      FIRST MARKER (UNCHANGED)     -->
-<!-- ========================= -->
+<!-- FIRST MARKER -->
 <a-nft
   type="nft"
   url="./nft/dali"
@@ -245,14 +144,7 @@
           rotation="-30 0 0"
           scale="50 50 50">
 
-  <a-plane 
-    id="text-bg"
-    width="6" 
-    height="3" 
-    color="#000000" 
-    opacity="0"
-    material="shader: flat; side: double; depthTest: false;">
-  </a-plane>
+  <a-plane width="6" height="3" color="#000" opacity="0"></a-plane>
 
   <a-text
     position="0 0 0.15"
@@ -260,17 +152,14 @@
     color="#ff0000"
     width="6"
     wrap-count="18"
-    value="SHOW ME ONE OF MY WORKS"
-    shader="msdf"
-    side="double"
-    negate="false">
+    value="SHOW ME ONE OF MY WORKS">
   </a-text>
 
 </a-entity>
-
 </a-nft>
 
 
+<!-- SECOND MARKER -->
 <a-nft
   id="marker-dali3"
   type="nft"
@@ -280,140 +169,101 @@
   smoothTolerance="0.01"
   emitevents="true">
 
-  <!-- Interactable checkmark -->
   <a-entity id="panel2"
             visible="false"
             position="0 0 0"
             scale="30 30 30"
-            pinch-scale="min:10; max:150"
-            one-finger-rotate="sensitivity:0.3">
+            pinch-scale
+            one-finger-rotate>
 
       <a-gltf-model
         id="model2"
         src="./models/CheckMark.glb"
         position="0 0 0"
-        scale="1 1 1"
         rotation="-90 0 0">
       </a-gltf-model>
 
   </a-entity>
-
 </a-nft>
 
   <a-entity camera></a-entity>
 </a-scene>
 
 <script>
-console.log('🔵 Main script starting...');
-
 let daliScanned = false;
 
 window.addEventListener('load', () => {
-  const scene = document.querySelector('a-scene');
+
   const marker1 = document.querySelector('a-nft[type="nft"]');
   const marker2 = document.querySelector('#marker-dali3');
-  const panel2 = document.querySelector('#panel2');
-  const markerStatusEl = document.getElementById('marker-status');
+  const panel2 = document.getElementById('panel2');
 
-  // Button controls
+  // BUTTONS
   const btnRotL = document.getElementById('btn-rot-l');
   const btnRotR = document.getElementById('btn-rot-r');
   const btnScaleMinus = document.getElementById('btn-scale--');
   const btnScalePlus = document.getElementById('btn-scale-+');
   const btnColor = document.getElementById('btn-color');
 
-  // Rotation amount per click (degrees)
   const rotStep = 15;
-  // Scale multiplier per click
   const scaleStep = 1.2;
-  // Scale limits
   const minScale = 10;
   const maxScale = 150;
 
-  // Rotate Left
-  btnRotL.addEventListener('click', () => {
+  btnRotL.onclick = () => {
     if (!panel2.getAttribute('visible')) return;
-    const rot = panel2.getAttribute('rotation');
-    panel2.setAttribute('rotation', {
-      x: rot.x,
-      y: rot.y - rotStep,
-      z: rot.z
-    });
-  });
+    const r = panel2.getAttribute('rotation');
+    panel2.setAttribute('rotation',{x:r.x,y:r.y - rotStep,z:r.z});
+  };
+  btnRotR.onclick = () => {
+    if (!panel2.getAttribute('visible')) return;
+    const r = panel2.getAttribute('rotation');
+    panel2.setAttribute('rotation',{x:r.x,y:r.y + rotStep,z:r.z});
+  };
 
-  // Rotate Right
-  btnRotR.addEventListener('click', () => {
+  btnScaleMinus.onclick = () => {
     if (!panel2.getAttribute('visible')) return;
-    const rot = panel2.getAttribute('rotation');
-    panel2.setAttribute('rotation', {
-      x: rot.x,
-      y: rot.y + rotStep,
-      z: rot.z
-    });
-  });
+    const s = panel2.getAttribute('scale');
+    let n = Math.max(minScale, s.x / scaleStep);
+    panel2.setAttribute('scale',{x:n,y:n,z:n});
+  };
 
-  // Scale Down
-  btnScaleMinus.addEventListener('click', () => {
+  btnScalePlus.onclick = () => {
     if (!panel2.getAttribute('visible')) return;
-    const scale = panel2.getAttribute('scale');
-    const newScale = Math.max(minScale, scale.x / scaleStep);
-    panel2.setAttribute('scale', {
-      x: newScale,
-      y: newScale,
-      z: newScale
-    });
-  });
+    const s = panel2.getAttribute('scale');
+    let n = Math.min(maxScale, s.x * scaleStep);
+    panel2.setAttribute('scale',{x:n,y:n,z:n});
+  };
 
-  // Scale Up
-  btnScalePlus.addEventListener('click', () => {
+  btnColor.onclick = () => {
     if (!panel2.getAttribute('visible')) return;
-    const scale = panel2.getAttribute('scale');
-    const newScale = Math.min(maxScale, scale.x * scaleStep);
-    panel2.setAttribute('scale', {
-      x: newScale,
-      y: newScale,
-      z: newScale
-    });
-  });
-
-  // Random Color (for the model)
-  btnColor.addEventListener('click', () => {
-    if (!panel2.getAttribute('visible')) return;
-    const colors = ['#4CC3D9', '#FFC65D', '#7BC8A4', '#EF2D5E', '#FF0000', '#FFFFFF'];
-    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    const colors=['#4CC3D9','#FFC65D','#7BC8A4','#EF2D5E','#FF0000','#FFFFFF'];
+    const c = colors[Math.floor(Math.random()*colors.length)];
     const model = document.getElementById('model2');
-    // Apply color to model material
+
     model.addEventListener('model-loaded', () => {
-      model.getObject3D('mesh').traverse((node) => {
-        if (node.isMesh) {
-          node.material.color.set(randomColor);
-        }
+      model.getObject3D('mesh').traverse((node)=>{
+        if(node.isMesh) node.material.color.set(c);
       });
     });
-  });
+  };
 
-  // FIRST MARKER — when scanned
   marker1.addEventListener('markerFound', () => {
-    console.log("🎉 FIRST NFT FOUND");
     daliScanned = true;
   });
 
-  // SECOND MARKER — only allowed after first
   marker2.addEventListener('markerFound', () => {
     if (!daliScanned) {
-      console.log("⛔ Second marker locked — scan DALI first!");
       panel2.setAttribute("visible", false);
       return;
     }
-    console.log("🎉 SECOND NFT FOUND");
     panel2.setAttribute("visible", true);
   });
 
   marker2.addEventListener('markerLost', () => {
-    if (daliScanned) panel2.setAttribute("visible", false);
+    panel2.setAttribute("visible", false);
   });
 
-  console.log('✅ Unlock logic added');
 });
 </script>
 

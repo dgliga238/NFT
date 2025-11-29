@@ -183,13 +183,13 @@
 
 <body>
 
-  <!-- Debug Info Display -->
+  <!-- Debug Status -->
   <div id="debug-info">
     <div>Status: <span id="status">Initializing...</span></div>
     <div>Marker: <span id="marker-status">Not found</span></div>
   </div>
 
-  <!-- HUD -->
+  <!-- HUD (unchanged) -->
   <div class="hud" id="hud">
     <button id="btn-rot-l">⟲</button>
     <button id="btn-rot-r">⟳</button>
@@ -204,6 +204,9 @@
   renderer="logarithmicDepthBuffer: true; alpha: true;"
   arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: true">
 
+<!-- ========================= -->
+<!--      FIRST MARKER (UNCHANGED)     -->
+<!-- ========================= -->
 <a-nft
   type="nft"
   url="./nft/dali"
@@ -211,14 +214,12 @@
   smoothCount="10"
   smoothTolerance="0.01"
   emitevents="true">
-   
 
  <a-entity id="main-text"
           position="0 30 20"
           rotation="-10 0 0"
           scale="50 50 50">
 
-  <!-- Big background (far from marker = stable) -->
   <a-plane 
     id="text-bg"
     width="6" 
@@ -228,7 +229,6 @@
     material="shader: flat; side: double; depthTest: false;">
   </a-plane>
 
-  <!-- Very big red text -->
   <a-text
     position="0 0 0.15"
     align="center"
@@ -243,8 +243,29 @@
 
 </a-entity>
 
+</a-nft>
 
+<!-- ========================= -->
+<!--   SECOND MARKER (dali3)   -->
+<!-- ========================= -->
+<a-nft
+  id="marker-dali3"
+  type="nft"
+  url="./nft/dali3"
+  smooth="true"
+  smoothCount="10"
+  smoothTolerance="0.01"
+  emitevents="true">
 
+  <a-entity id="panel2" visible="false" position="0 30 20" rotation="-10 0 0" scale="50 50 50">
+    <a-text
+      value="SECOND MARKER — DALI 3"
+      align="center"
+      width="6"
+      color="yellow"
+      position="0 0 0.2">
+    </a-text>
+  </a-entity>
 
 </a-nft>
 
@@ -252,114 +273,42 @@
   <a-entity camera></a-entity>
 </a-scene>
 
+<script>
+console.log('🔵 Main script starting...');
 
-  <script>
-    console.log('🔵 Main script starting...');
-    
-    const hud = document.getElementById('hud');
-    const cube = document.getElementById('cube');
-    const statusEl = document.getElementById('status');
-    const markerStatusEl = document.getElementById('marker-status');
-    const textPanel = document.getElementById('text-panel');
+let daliScanned = false;
 
-    // Update status display
-    function updateStatus(msg) {
-      console.log('📊 ' + msg);
-      statusEl.textContent = msg;
+window.addEventListener('load', () => {
+  const scene = document.querySelector('a-scene');
+  const marker1 = document.querySelector('a-nft[type="nft"]');
+  const marker2 = document.querySelector('#marker-dali3');
+  const panel2 = document.querySelector('#panel2');
+  const markerStatusEl = document.getElementById('marker-status');
+
+  // FIRST MARKER — when scanned
+  marker1.addEventListener('markerFound', () => {
+    console.log("🎉 FIRST NFT FOUND");
+    daliScanned = true;
+  });
+
+  // SECOND MARKER — only allowed after first
+  marker2.addEventListener('markerFound', () => {
+    if (!daliScanned) {
+      console.log("⛔ Second marker locked — scan DALI first!");
+      panel2.setAttribute("visible", false);
+      return;
     }
+    console.log("🎉 SECOND NFT FOUND");
+    panel2.setAttribute("visible", true);
+  });
 
-    function updateMarkerStatus(msg) {
-      console.log('🎯 ' + msg);
-      markerStatusEl.textContent = msg;
-    }
+  marker2.addEventListener('markerLost', () => {
+    if (daliScanned) panel2.setAttribute("visible", false);
+  });
 
-    // HUD controls
-    document.getElementById('btn-rot-l').onclick = () => nudgeRot(-15);
-    document.getElementById('btn-rot-r').onclick = () => nudgeRot(15);
-    
-    function nudgeRot(d) {
-      const r = cube.getAttribute('rotation');
-      cube.setAttribute('rotation', {x:r.x, y:r.y+d, z:r.z});
-    }
-
-    document.getElementById('btn-scale--').onclick = () => nudgeScale(0.9);
-    document.getElementById('btn-scale-+').onclick = () => nudgeScale(1.1);
-    
-    function nudgeScale(m) {
-      const s = cube.getAttribute('scale');
-      cube.setAttribute('scale', {
-        x: clamp(s.x*m, 0.2, 3),
-        y: clamp(s.y*m, 0.2, 3),
-        z: clamp(s.z*m, 0.2, 3)
-      });
-    }
-
-    document.getElementById('btn-color').onclick = () => cube.emit('random-color');
-
-    cube.addEventListener('tap', () => cube.emit('toggle-spin'));
-    cube.addEventListener('doubletap', () => cube.emit('random-color'));
-    cube.addEventListener('longpress', () => hud.classList.toggle('hidden'));
-
-    // === DEBUG EVENT LISTENERS ===
-    
-    // Wait for DOM to be ready
-    window.addEventListener('load', () => {
-      console.log('✅ Window loaded');
-      updateStatus('Window loaded');
-
-      const scene = document.querySelector('a-scene');
-      const marker = document.querySelector('a-nft');
-
-      if (!scene) {
-        console.error('❌ Scene not found!');
-        updateStatus('ERROR: Scene not found');
-        return;
-      }
-
-      if (!marker) {
-        console.error('❌ Marker not found!');
-        updateStatus('ERROR: Marker not found');
-        return;
-      }
-
-      console.log('✅ Scene and marker elements found');
-
-      // Scene loaded
-      scene.addEventListener('loaded', () => {
-        console.log('✅ A-Frame scene loaded');
-        updateStatus('Scene loaded');
-      });
-
-      // AR.js ready
-      scene.addEventListener('arjs-video-loaded', () => {
-        console.log('✅ Camera video loaded');
-        updateStatus('Camera ready');
-      });
-
-      // NFT marker loaded
-      marker.addEventListener('arjs-nft-loaded', (e) => {
-        console.log('✅ NFT marker data loaded:', e.detail);
-        updateStatus('NFT loaded');
-        updateMarkerStatus('Searching...');
-      });
-
-      // Marker found
-      marker.addEventListener('markerFound', () => {
-        console.log('🎯 ✅ MARKER FOUND!');
-        updateMarkerStatus('FOUND! ✅');
-      });
-
-      // Marker lost
-      marker.addEventListener('markerLost', () => {
-        console.log('🎯 ❌ MARKER LOST');
-        updateMarkerStatus('Lost - searching...');
-      });
-
-      console.log('✅ All event listeners attached');
-    });
-
-    console.log('🔵 Script setup complete');
-  </script>
+  console.log('✅ Unlock logic added');
+});
+</script>
 
 </body>
 </html>

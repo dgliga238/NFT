@@ -5,7 +5,7 @@
   <title>NFT AR Interaction Lab</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
 
-<!-- A-Frame (1.2.0) -->
+<!-- A-Frame (use 1.2.0 with AR.js NFT) -->
 <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
 
 <!-- AR.js NFT -->
@@ -38,77 +38,158 @@
     }
   </style>
 
-<script>
-/* =====================================
-   SAFE PINCH (Two-fingers Only)
-===================================== */
-AFRAME.registerComponent('safe-pinch', {
-  init() {
-    const el = this.el;
-    let touchCount = 0;
+  <script>
+    console.log('🔵 Script loading...');
+    
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
-    window.addEventListener('touchstart', e => {
-      touchCount = e.touches.length;
-
-      if (touchCount === 2) {
-        // Enable pinch-scale ONLY during actual 2-finger pinch
-        el.setAttribute('pinch-scale', 'min:1; max:3');
-      } else {
-        // Disable pinch so single tap can't shrink
-        el.removeAttribute('pinch-scale');
+    AFRAME.registerComponent('tap-gestures', {
+      schema: {longMs:{default:500}},
+      init () {
+        let lastTap = 0, pressTimer = null, down = false;
+        this.el.addEventListener('mousedown', () => {
+          down = true;
+          const now = performance.now();
+          if (now - lastTap < 300) this.el.emit('doubletap');
+          lastTap = now;
+          pressTimer = setTimeout(() => { if (down) this.el.emit('longpress'); }, this.data.longMs);
+        });
+        this.el.addEventListener('mouseup', () => {
+          down = false;
+          clearTimeout(pressTimer);
+          this.el.emit('tap');
+        });
       }
     });
 
-    window.addEventListener('touchend', e => {
-      touchCount = e.touches.length;
-      if (touchCount < 2) {
-        el.removeAttribute('pinch-scale');
+    AFRAME.registerComponent('drag-on-plane', {
+      schema: { plane:{type:'selector'}, yOffset:{default:0.25}, radius:{default:0.6} },
+      init(){
+        this.dragging=false;
+        this.scene=this.el.sceneEl;
+        this.rayEl=document.querySelector('#ray');
+
+        this.el.addEventListener('mousedown',()=>this.dragging=true);
+        window.addEventListener('mouseup',()=>this.dragging=false);
+
+        this.scene.addEventListener('mousemove',()=>this.updateDrag());
+      },
+      updateDrag(){
+        if(!this.dragging) return;
+        const raycaster = this.rayEl.getObject3D('raycaster');
+        if(!raycaster) return;
+        const planeMesh = this.data.plane.getObject3D('mesh');
+        if(!planeMesh) return;
+
+        planeMesh.updateMatrixWorld();
+        const normal = new THREE.Vector3(0,1,0)
+          .applyQuaternion(planeMesh.getWorldQuaternion(new THREE.Quaternion()));
+        const point = planeMesh.getWorldPosition(new THREE.Vector3());
+        const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(normal, point);
+
+        const hit = new THREE.Vector3();
+        const ray = raycaster.ray;
+
+        if(ray.intersectPlane(plane, hit)){
+          const local = this.el.parentEl.object3D.worldToLocal(hit.clone());
+          const r = Math.hypot(local.x, local.z);
+          if(r>this.data.radius){
+            const k = this.data.radius / r;
+            local.x *= k; local.z *= k;
+          }
+          this.el.setAttribute('position', `${local.x} ${this.data.yOffset} ${local.z}`);
+        }
       }
     });
-  }
-});
 
+    AFRAME.registerComponent('pinch-scale', {
+      schema:{min:{default:0.2}, max:{default:3}},
+      init(){
+        this.active=false; this.startD=0; this.startScale=null;
+        const dist=(a,b)=>Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
 
-/* (ALL YOUR ORIGINAL GESTURE COMPONENTS BELOW — UNCHANGED) */
+        window.addEventListener('touchstart',(e)=>{
+          if(e.touches.length===2){
+            this.active=true;
+            this.startD=dist(e.touches[0],e.touches[1]);
+            this.startScale={...this.el.getAttribute('scale')};
+          }
+        },{passive:false});
 
-const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+        window.addEventListener('touchmove',(e)=>{
+          if(!this.active||e.touches.length<2) return;
+          const d=dist(e.touches[0],e.touches[1]);
+          const mult=d/this.startD;
+          const s=this.startScale;
+          this.el.setAttribute('scale',{
+            x: clamp(s.x*mult,this.data.min,this.data.max),
+            y: clamp(s.y*mult,this.data.min,this.data.max),
+            z: clamp(s.z*mult,this.data.min,this.data.max)
+          });
+        },{passive:false});
 
-AFRAME.registerComponent('twist-rotate', {
-  schema:{degPerRad:{default:57.2958}},
-  init(){
-    this.active=false; this.startA=0; this.startRotY=0;
-    const angle=(a,b)=>Math.atan2(b.clientY-a.clientY,b.clientX-a.clientX);
-
-    window.addEventListener('touchstart',(e)=>{
-      if(e.touches.length===2){
-        this.active=true;
-        this.startA=angle(e.touches[0],e.touches[1]);
-        this.startRotY=this.el.getAttribute('rotation').y;
+        window.addEventListener('touchend',()=>this.active=false);
       }
     });
 
-    window.addEventListener('touchmove',(e)=>{
-      if(!this.active||e.touches.length<2) return;
-      const a=angle(e.touches[0],e.touches[1]);
-      const delta = (a - this.startA)*this.data.degPerRad;
-      const r=this.el.getAttribute('rotation');
-      this.el.setAttribute('rotation',{x:r.x,y:this.startRotY+delta,z:r.z});
+    AFRAME.registerComponent('twist-rotate', {
+      schema:{degPerRad:{default:57.2958}},
+      init(){
+        this.active=false; this.startA=0; this.startRotY=0;
+        const angle=(a,b)=>Math.atan2(b.clientY-a.clientY,b.clientX-a.clientX);
+
+        window.addEventListener('touchstart',(e)=>{
+          if(e.touches.length===2){
+            this.active=true;
+            this.startA=angle(e.touches[0],e.touches[1]);
+            this.startRotY=this.el.getAttribute('rotation').y;
+          }
+        });
+
+        window.addEventListener('touchmove',(e)=>{
+          if(!this.active||e.touches.length<2) return;
+          const a=angle(e.touches[0],e.touches[1]);
+          const delta = (a - this.startA)*this.data.degPerRad;
+          const r=this.el.getAttribute('rotation');
+          this.el.setAttribute('rotation',{x:r.x,y:this.startRotY+delta,z:r.z});
+        });
+
+        window.addEventListener('touchend',()=>this.active=false);
+      }
     });
 
-    window.addEventListener('touchend',()=>this.active=false);
-  }
-});
-</script>
-
+    AFRAME.registerComponent('spin-toggle',{
+      schema:{speed:{default:4000}},
+      init(){
+        this.spinning=false;
+        this.el.addEventListener('toggle-spin',()=>{
+          this.spinning=!this.spinning;
+          if(this.spinning){
+            this.el.setAttribute('animation__spin',
+              `property: rotation; to: 0 360 0; loop: true; dur: ${this.data.speed}`);
+          }else{
+            this.el.removeAttribute('animation__spin');
+          }
+        });
+        this.el.addEventListener('random-color',()=>{
+          const colors=['#4CC3D9','#FFC65D','#7BC8A4','#EF2D5E','#FFF'];
+          this.el.setAttribute('material','color',
+            colors[Math.floor(Math.random()*colors.length)]);
+        });
+      }
+    });
+  </script>
 </head>
 
 <body>
 
+  <!-- Debug Status -->
   <div id="debug-info">
     <div>Status: <span id="status">Initializing...</span></div>
     <div>Marker: <span id="marker-status">Not found</span></div>
   </div>
 
+  <!-- HUD (unchanged) -->
   <div class="hud" id="hud">
     <button id="btn-rot-l">⟲</button>
     <button id="btn-rot-r">⟳</button>
@@ -118,32 +199,55 @@ AFRAME.registerComponent('twist-rotate', {
   </div>
 
   <a-scene
-    embedded
-    vr-mode-ui="enabled: false"
-    renderer="logarithmicDepthBuffer: true; alpha: true;"
-    arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: true">
+  embedded
+  vr-mode-ui="enabled: false"
+  renderer="logarithmicDepthBuffer: true; alpha: true;"
+  arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: true">
 
-<!-- FIRST MARKER — UNTOUCHED -->
-<a-nft type="nft" url="./nft/dali" smooth="true" smoothCount="10" smoothTolerance="0.01" emitevents="true">
+<!-- ========================= -->
+<!--      FIRST MARKER (UNCHANGED)     -->
+<!-- ========================= -->
+<a-nft
+  type="nft"
+  url="./nft/dali"
+  smooth="true"
+  smoothCount="10"
+  smoothTolerance="0.01"
+  emitevents="true">
+
  <a-entity id="main-text"
           position="0 30 20"
           rotation="-30 0 0"
           scale="50 50 50">
 
-  <a-plane id="text-bg" width="6" height="3" color="#000" opacity="0"
-           material="shader: flat; side: double; depthTest: false;">
+  <a-plane 
+    id="text-bg"
+    width="6" 
+    height="3" 
+    color="#000000" 
+    opacity="0"
+    material="shader: flat; side: double; depthTest: false;">
   </a-plane>
 
-  <a-text position="0 0 0.15" align="center" color="red" width="6"
-          value="SHOW ME ONE OF MY WORKS" wrap-count="18"
-          shader="msdf" side="double">
+  <a-text
+    position="0 0 0.15"
+    align="center"
+    color="#ff0000"
+    width="6"
+    wrap-count="18"
+    value="SHOW ME ONE OF MY WORKS"
+    shader="msdf"
+    side="double"
+    negate="false">
   </a-text>
 
 </a-entity>
+
 </a-nft>
 
-<!-- SECOND MARKER — WITH SAFE PINCH -->
-<a-nft id="marker-dali3"
+
+<a-nft
+  id="marker-dali3"
   type="nft"
   url="./nft/dali3"
   smooth="true"
@@ -151,53 +255,63 @@ AFRAME.registerComponent('twist-rotate', {
   smoothTolerance="0.01"
   emitevents="true">
 
+  <!-- Interactable checkmark -->
   <a-entity id="panel2"
             visible="false"
-            position="0 30 20"
-            rotation="-30 0 0"
-            scale="20 20 20"
-            safe-pinch
+            position="0 0 0"
+            scale="1 1 1"
+            pinch-scale="min:0.3; max:3"
             twist-rotate>
 
-    <a-gltf-model
-      id="model2"
-      src="./models/CheckMark.glb"
-      position="0 0 0"
-      scale="1 1 1"
-      rotation="0 0 0">
-    </a-gltf-model>
+      <a-gltf-model
+        id="model2"
+        src="./models/CheckMark.glb"
+        position="0 0 0"
+        scale="1 1 1"
+        rotation="0 0 0">
+      </a-gltf-model>
 
   </a-entity>
 
 </a-nft>
 
-<a-entity camera></a-entity>
+  <a-entity camera></a-entity>
 </a-scene>
 
-
 <script>
+console.log('🔵 Main script starting...');
+
 let daliScanned = false;
 
 window.addEventListener('load', () => {
+  const scene = document.querySelector('a-scene');
   const marker1 = document.querySelector('a-nft[type="nft"]');
   const marker2 = document.querySelector('#marker-dali3');
-  const panel2  = document.querySelector('#panel2');
+  const panel2 = document.querySelector('#panel2');
+  const markerStatusEl = document.getElementById('marker-status');
 
+  // FIRST MARKER — when scanned
   marker1.addEventListener('markerFound', () => {
+    console.log("🎉 FIRST NFT FOUND");
     daliScanned = true;
   });
 
+  // SECOND MARKER — only allowed after first
   marker2.addEventListener('markerFound', () => {
     if (!daliScanned) {
+      console.log("⛔ Second marker locked — scan DALI first!");
       panel2.setAttribute("visible", false);
       return;
     }
+    console.log("🎉 SECOND NFT FOUND");
     panel2.setAttribute("visible", true);
   });
 
   marker2.addEventListener('markerLost', () => {
     if (daliScanned) panel2.setAttribute("visible", false);
   });
+
+  console.log('✅ Unlock logic added');
 });
 </script>
 

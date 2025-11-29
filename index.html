@@ -108,16 +108,18 @@
         this.active=false; this.startD=0; this.startScale=null;
         const dist=(a,b)=>Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
 
-        window.addEventListener('touchstart',(e)=>{
+        this.el.addEventListener('touchstart',(e)=>{
           if(e.touches.length===2){
+            e.stopPropagation();
             this.active=true;
             this.startD=dist(e.touches[0],e.touches[1]);
             this.startScale={...this.el.getAttribute('scale')};
           }
         },{passive:false});
 
-        window.addEventListener('touchmove',(e)=>{
+        this.el.addEventListener('touchmove',(e)=>{
           if(!this.active||e.touches.length<2) return;
+          e.stopPropagation();
           const d=dist(e.touches[0],e.touches[1]);
           const mult=d/this.startD;
           const s=this.startScale;
@@ -128,33 +130,34 @@
           });
         },{passive:false});
 
-        window.addEventListener('touchend',()=>this.active=false);
+        this.el.addEventListener('touchend',()=>this.active=false);
       }
     });
 
-    AFRAME.registerComponent('twist-rotate', {
-      schema:{degPerRad:{default:57.2958}},
+    AFRAME.registerComponent('one-finger-rotate', {
+      schema:{sensitivity:{default:0.5}},
       init(){
-        this.active=false; this.startA=0; this.startRotY=0;
-        const angle=(a,b)=>Math.atan2(b.clientY-a.clientY,b.clientX-a.clientX);
+        this.active=false; this.startX=0; this.startRotY=0;
 
-        window.addEventListener('touchstart',(e)=>{
-          if(e.touches.length===2){
+        this.el.addEventListener('touchstart',(e)=>{
+          if(e.touches.length===1){
+            e.stopPropagation();
             this.active=true;
-            this.startA=angle(e.touches[0],e.touches[1]);
+            this.startX=e.touches[0].clientX;
             this.startRotY=this.el.getAttribute('rotation').y;
           }
-        });
+        },{passive:false});
 
-        window.addEventListener('touchmove',(e)=>{
-          if(!this.active||e.touches.length<2) return;
-          const a=angle(e.touches[0],e.touches[1]);
-          const delta = (a - this.startA)*this.data.degPerRad;
+        this.el.addEventListener('touchmove',(e)=>{
+          if(!this.active||e.touches.length!==1) return;
+          e.stopPropagation();
+          const deltaX = e.touches[0].clientX - this.startX;
+          const rotation = this.startRotY + (deltaX * this.data.sensitivity);
           const r=this.el.getAttribute('rotation');
-          this.el.setAttribute('rotation',{x:r.x,y:this.startRotY+delta,z:r.z});
-        });
+          this.el.setAttribute('rotation',{x:r.x,y:rotation,z:r.z});
+        },{passive:false});
 
-        window.addEventListener('touchend',()=>this.active=false);
+        this.el.addEventListener('touchend',()=>this.active=false);
       }
     });
 
@@ -255,12 +258,13 @@
   smoothTolerance="0.01"
   emitevents="true">
 
-   <a-entity id="panel2"
+  <!-- Interactable checkmark -->
+  <a-entity id="panel2"
             visible="false"
             position="0 0 0"
             scale="100 100 100"
-            pinch-scale="min:0.3; max:3"
-            twist-rotate>
+            pinch-scale="min:0.5; max:3"
+            one-finger-rotate="sensitivity:0.5">
 
       <a-gltf-model
         id="model2"

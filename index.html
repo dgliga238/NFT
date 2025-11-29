@@ -5,11 +5,11 @@
   <title>NFT AR Interaction Lab</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
 
-  <!-- A-Frame -->
-  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+<!-- A-Frame (use 1.2.0 with AR.js NFT) -->
+<script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
 
-  <!-- AR.js NFT version -->
-  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar-nft.js"></script>
+<!-- AR.js NFT -->
+<script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar-nft.js"></script>
 
   <style>
     body { margin:0; overflow:hidden; }
@@ -201,7 +201,7 @@
   <a-scene
   embedded
   vr-mode-ui="enabled: false"
-  renderer="colorManagement: true"
+  renderer="logarithmicDepthBuffer: true; alpha: true;"
   arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: true">
 
   <a-nft

@@ -213,29 +213,24 @@
   emitevents="true">
 
   <!-- BIG CENTERED CUBE WRAPPER -->
-  <a-entity id="wrapper" position="0 0 0" scale="8 8 8">
+    <a-entity id="main-text" position="0 20 0" rotation="-20 0 0">
 
-      <!-- ULTRA VISIBLE VERY LARGE CENTERED CUBE -->
-      <a-box id="cube"
-        position="0 10 0"
-        depth="20" height="20" width="20"
-        color="#ff0000"
-        material="color: #ff0000; emissive: #ff0000">
-      </a-box>
+    <a-plane 
+      width="40" 
+      height="15" 
+      color="#0e1114" 
+      opacity="0.85">
+    </a-plane>
 
-  </a-entity>
-
-  <!-- Text panel -->
-  <a-entity id="text-panel" position="0 35 0" rotation="-20 0 0" visible="false">
-    <a-plane width="22" height="10" color="#0e1114" opacity="0.85"></a-plane>
     <a-text
-      position="0 0 0.01"
+      position="0 0 0.1"
       align="center"
       color="#f5f7fa"
-      width="20"
-      wrap-count="32"
-      value="Hold the camera over the image to lock on. Once locked, you’ll see this info panel anchored to the marker.">
+      width="38"
+      wrap-count="40"
+      value="Show me one of my work">
     </a-text>
+
   </a-entity>
 
 </a-nft>

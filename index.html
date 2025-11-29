@@ -245,9 +245,7 @@
 
 </a-nft>
 
-<!-- ========================= -->
-<!--   SECOND MARKER (dali3)   -->
-<!-- ========================= -->
+
 <a-nft
   id="marker-dali3"
   type="nft"
@@ -257,17 +255,28 @@
   smoothTolerance="0.01"
   emitevents="true">
 
-  <a-entity id="panel2" visible="false" position="0 30 20" rotation="-30 0 0" scale="50 50 50">
-    <a-text
-      value="SECOND MARKER — DALI 3"
-      align="center"
-      width="6"
-      color="yellow"
-      position="0 0 0.2">
-    </a-text>
+  <!-- INTERACTIVE 3D MODEL (initially invisible) -->
+  <a-entity id="panel2"
+            visible="false"
+            position="0 30 20"
+            rotation="-30 0 0"
+            scale="1 1 1"
+            drag-on-plane="plane: #text-bg"
+            pinch-scale="min:0.2; max:3"
+            twist-rotate>
+    
+    <a-gltf-model
+      id="model2"
+      src="./models/CheckMark.glb"
+      position="0 0 0"
+      scale="1 1 1"
+      rotation="0 180 0">
+    </a-gltf-model>
+
   </a-entity>
 
 </a-nft>
+
 
 
   <a-entity camera></a-entity>

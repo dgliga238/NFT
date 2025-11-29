@@ -204,23 +204,42 @@
   renderer="logarithmicDepthBuffer: true; alpha: true;"
   arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: true">
 
-  <a-nft
-    type="nft"
-    url="./nft/pinball2"
-    smooth="true"
-    smoothCount="10"
-    smoothTolerance="0.01"
-    emitevents="true">
+<a-nft
+  type="nft"
+  url="./nft/pinball2"
+  smooth="true"
+  smoothCount="10"
+  smoothTolerance="0.01"
+  emitevents="true">
 
-      <!-- ULTRA VISIBLE RED CUBE -->
+  <!-- BIG CENTERED CUBE WRAPPER -->
+  <a-entity id="wrapper" position="0 0 0" scale="8 8 8">
+
+      <!-- ULTRA VISIBLE VERY LARGE CENTERED CUBE -->
       <a-box id="cube"
-      position="0 2 0"
-      depth="20" height="20" width="20"
-      color="#ff0000"
-       material="emissive: #ff0000">
-</a-box>
+        position="0 10 0"
+        depth="50" height="50" width="50"
+        color="#ff0000"
+        material="color: #ff0000; emissive: #ff0000">
+      </a-box>
 
-  </a-nft>
+  </a-entity>
+
+  <!-- Text panel -->
+  <a-entity id="text-panel" position="0 35 0" rotation="-20 0 0" visible="false">
+    <a-plane width="22" height="10" color="#0e1114" opacity="0.85"></a-plane>
+    <a-text
+      position="0 0 0.01"
+      align="center"
+      color="#f5f7fa"
+      width="20"
+      wrap-count="32"
+      value="Hold the camera over the image to lock on. Once locked, you’ll see this info panel anchored to the marker.">
+    </a-text>
+  </a-entity>
+
+</a-nft>
+
 
   <a-entity camera></a-entity>
 </a-scene>
@@ -233,6 +252,7 @@
     const cube = document.getElementById('cube');
     const statusEl = document.getElementById('status');
     const markerStatusEl = document.getElementById('marker-status');
+    const textPanel = document.getElementById('text-panel');
 
     // Update status display
     function updateStatus(msg) {

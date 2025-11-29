@@ -214,33 +214,35 @@
    
 
  <a-entity id="main-text"
-          position="0 20 0"
-          rotation="-45 0 0"
-          scale="20 20 20">
+          position="0 30 20"
+          rotation="-30 0 0"
+          scale="50 50 50">
 
-  <!-- Background panel (big & visible) -->
+  <!-- Big background (far from marker = stable) -->
   <a-plane 
     id="text-bg"
-    width="8" 
-    height="4" 
+    width="6" 
+    height="3" 
     color="#000000" 
     opacity="0"
-    material="shader: flat; side: double">
+    material="shader: flat; side: double; depthTest: false;">
   </a-plane>
 
-  <!-- Large readable red text -->
+  <!-- Very big red text -->
   <a-text
-    position="0 0 0.1"
+    position="0 0 0.15"
     align="center"
     color="#ff0000"
-    width="7"
-    wrap-count="25"
+    width="6"
+    wrap-count="18"
     value="SHOW ME ONE OF MY WORKS"
     shader="msdf"
-    side="double">
+    side="double"
+    negate="false">
   </a-text>
 
 </a-entity>
+
 
 
 

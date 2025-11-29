@@ -262,9 +262,7 @@
   <a-entity id="panel2"
             visible="false"
             position="0 0 0"
-            scale="30 30 30"
-            pinch-scale="min:10; max:150"
-            one-finger-rotate="sensitivity:0.5">
+            scale="30 30 30">
 
       <a-gltf-model
         id="model2"
@@ -292,6 +290,83 @@ window.addEventListener('load', () => {
   const marker2 = document.querySelector('#marker-dali3');
   const panel2 = document.querySelector('#panel2');
   const markerStatusEl = document.getElementById('marker-status');
+
+  // Button controls
+  const btnRotL = document.getElementById('btn-rot-l');
+  const btnRotR = document.getElementById('btn-rot-r');
+  const btnScaleMinus = document.getElementById('btn-scale--');
+  const btnScalePlus = document.getElementById('btn-scale-+');
+  const btnColor = document.getElementById('btn-color');
+
+  // Rotation amount per click (degrees)
+  const rotStep = 15;
+  // Scale multiplier per click
+  const scaleStep = 1.2;
+  // Scale limits
+  const minScale = 10;
+  const maxScale = 150;
+
+  // Rotate Left
+  btnRotL.addEventListener('click', () => {
+    if (!panel2.getAttribute('visible')) return;
+    const rot = panel2.getAttribute('rotation');
+    panel2.setAttribute('rotation', {
+      x: rot.x,
+      y: rot.y - rotStep,
+      z: rot.z
+    });
+  });
+
+  // Rotate Right
+  btnRotR.addEventListener('click', () => {
+    if (!panel2.getAttribute('visible')) return;
+    const rot = panel2.getAttribute('rotation');
+    panel2.setAttribute('rotation', {
+      x: rot.x,
+      y: rot.y + rotStep,
+      z: rot.z
+    });
+  });
+
+  // Scale Down
+  btnScaleMinus.addEventListener('click', () => {
+    if (!panel2.getAttribute('visible')) return;
+    const scale = panel2.getAttribute('scale');
+    const newScale = Math.max(minScale, scale.x / scaleStep);
+    panel2.setAttribute('scale', {
+      x: newScale,
+      y: newScale,
+      z: newScale
+    });
+  });
+
+  // Scale Up
+  btnScalePlus.addEventListener('click', () => {
+    if (!panel2.getAttribute('visible')) return;
+    const scale = panel2.getAttribute('scale');
+    const newScale = Math.min(maxScale, scale.x * scaleStep);
+    panel2.setAttribute('scale', {
+      x: newScale,
+      y: newScale,
+      z: newScale
+    });
+  });
+
+  // Random Color (for the model)
+  btnColor.addEventListener('click', () => {
+    if (!panel2.getAttribute('visible')) return;
+    const colors = ['#4CC3D9', '#FFC65D', '#7BC8A4', '#EF2D5E', '#FF0000', '#FFFFFF'];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    const model = document.getElementById('model2');
+    // Apply color to model material
+    model.addEventListener('model-loaded', () => {
+      model.getObject3D('mesh').traverse((node) => {
+        if (node.isMesh) {
+          node.material.color.set(randomColor);
+        }
+      });
+    });
+  });
 
   // FIRST MARKER — when scanned
   marker1.addEventListener('markerFound', () => {
